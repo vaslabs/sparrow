@@ -19,7 +19,7 @@ class HttpRouterSpec extends WordSpec with ScalatestRouteTest with Matchers with
     }
 
     "redirect when short id matches a full url" in {
-      Get("/bar") ~> httpRouter.main ~> check {
+      Get("/b4r") ~> httpRouter.main ~> check {
         response.status shouldBe StatusCodes.TemporaryRedirect
       }
     }
@@ -29,5 +29,5 @@ class HttpRouterSpec extends WordSpec with ScalatestRouteTest with Matchers with
 class MockShortenedApi() extends ShortenedUrlApi {
   override def fetchUrl(urlId: String) = Futures.successful("http://foo.com")
 
-  override def shortenUrl(url: String) = Futures.successful("http://l/bar")
+  override def shortenUrl(url: String) = Futures.successful("http://l/b4r")
 }

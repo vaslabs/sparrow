@@ -33,5 +33,5 @@ trait HttpRouter extends FailFastCirceSupport{ this: ShortenedUrlApi =>
 
 object ShortenedPathMatchers {
   val urlIds: PathMatcher1[String] =
-    PathMatcher("""[a-z][a-z]{2,8}""".r)
+    PathMatcher("""[a-z0-9]{2,8}""".r)
 }
