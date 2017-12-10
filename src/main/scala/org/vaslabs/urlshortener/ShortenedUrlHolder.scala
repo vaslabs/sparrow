@@ -6,16 +6,21 @@ import org.vaslabs.urlshortener.ShortenedUrlHolder.FullUrl
 
 class ShortenedUrlHolder extends Actor{
 
-  import ShortenedUrlHolder.{StoreUrl, Get}
+  import ShortenedUrlHolder.{StoreUrl, Get, UrlIdAlreadyReserved, NotFound, StoredAck}
 
   private[this] def postUrlHold(fullUrl: FullUrl): Receive = {
     case Get(urlId) =>
       sender() ! fullUrl
+    case StoreUrl(shortenedUrl) =>
+      sender() ! UrlIdAlreadyReserved(shortenedUrl.shortVersion)
   }
 
   override def receive: Receive = {
     case StoreUrl(shortenedUrl) =>
       context.become(postUrlHold(FullUrl(shortenedUrl.url)))
+      sender() ! StoredAck
+    case Get(urlId) =>
+      sender() ! NotFound
   }
 
 }
@@ -52,4 +57,10 @@ object ShortenedUrlHolder {
     settings = ClusterShardingSettings(system),
     extractEntityId = extractEntityId,
     extractShardId = extractShardId)
+
+  case class UrlIdAlreadyReserved(urlId: String)
+  case class NotFound(urlId: String)
+
+  case object StoredAck
+
 }

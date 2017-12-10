@@ -1,22 +1,38 @@
 package org.vaslabs.urlshortener
 
-import akka.actor.{Actor, Props}
+import akka.actor.{Actor, ActorRef, Props}
+import org.vaslabs.urlshortener.ShortenedUrlHolder.{StoredAck, UrlIdAlreadyReserved}
 
-class UrlShortener extends Actor{
+class UrlShortener(clusterRegion: ActorRef) extends Actor{
   import UrlShortener.ShortenCommand
   override def receive = {
     case sc: ShortenCommand =>
-      context.actorOf(Props[UrlShortenerDelegate]).forward(sc)
+      val senderRef = sender()
+      context.actorOf(Props(new UrlShortenerDelegate(senderRef, clusterRegion))).forward(sc)
   }
 }
 
-private class UrlShortenerDelegate extends Actor {
+private class UrlShortenerDelegate(replyTo: ActorRef, validateWith: ActorRef) extends Actor
+{
   import UrlShortener.{ShortenCommand, ShortUrl}
   import java.security.MessageDigest
   override def receive = {
     case ShortenCommand(url) =>
-      val shortId = sha(url)
-      sender() ! ShortUrl(shortId.substring(0, 4), shortId)
+      val hash = sha(url)
+      val shortenedUrl = ShortenedUrl(url, hash.substring(0, 4))
+      validateWith ! ShortenedUrlHolder.storeUrl(shortenedUrl)
+      context.become(waitingForValidation(shortenedUrl, hash))
+  }
+
+  private[this] def waitingForValidation(shortenedUrl: ShortenedUrl, hash: String): Receive = {
+    case UrlIdAlreadyReserved(urlId) =>
+      val rehash = sha(hash)
+      val newShortenedUrl = shortenedUrl.copy(shortVersion = rehash.substring(0, 4))
+      validateWith ! ShortenedUrlHolder.storeUrl(newShortenedUrl)
+      context.become(waitingForValidation(newShortenedUrl, rehash))
+    case StoredAck =>
+      replyTo ! ShortUrl(shortenedUrl.shortVersion, hash)
+      context.stop(self)
   }
 
   private[this] def sha(url: String): String =
@@ -32,7 +48,7 @@ private class UrlShortenerDelegate extends Actor {
 }
 
 object UrlShortener {
-  def props() = Props[UrlShortener]
+  def props(clusterRegion: ActorRef) = Props(new UrlShortener(clusterRegion))
 
   case class ShortenCommand(url: String)
   def shorten(url: String): ShortenCommand = ShortenCommand(url)

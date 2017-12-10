@@ -14,4 +14,11 @@ class ShortenedUrlClusterSpec
     expectMsg(ShortenedUrlHolder.FullUrl("http://foo.com"))
   }
 
+  "given that we pass a shortened url pair that already exists it" should "give us an error" in {
+    val clusterRegion = ShortenedUrlCluster.region
+    clusterRegion ! ShortenedUrlHolder.storeUrl(ShortenedUrl("http://foo.com", "bar"))
+    clusterRegion ! ShortenedUrlHolder.storeUrl(ShortenedUrl("http://foo.com", "bar"))
+    expectMsg(ShortenedUrlHolder.UrlIdAlreadyReserved("bar"))
+  }
+
 }
