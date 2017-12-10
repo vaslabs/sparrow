@@ -18,9 +18,7 @@ private class UrlShortenerDelegate(replyTo: ActorRef, validateWith: ActorRef) ex
   import java.security.MessageDigest
   override def receive = {
     case ShortenCommand(url) =>
-      log.info("Shortening $url")
       val hash = sha(url)
-      log.info(s"To $hash")
       val shortenedUrl = ShortenedUrl(url, hash.substring(0, 4))
       validateWith ! ShortenedUrlHolder.storeUrl(shortenedUrl)
       context.become(waitingForValidation(shortenedUrl, hash))
