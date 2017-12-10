@@ -1,9 +1,9 @@
 package org.vaslabs.urlshortener
 
-import akka.actor.{Actor, ActorRef, Props}
+import akka.actor.{Actor, ActorLogging, ActorRef, Props}
 import org.vaslabs.urlshortener.ShortenedUrlHolder.{StoredAck, UrlIdAlreadyReserved}
 
-class UrlShortener(clusterRegion: ActorRef) extends Actor{
+class UrlShortener(clusterRegion: ActorRef) extends Actor with ActorLogging{
   import UrlShortener.ShortenCommand
   override def receive = {
     case sc: ShortenCommand =>
@@ -12,16 +12,19 @@ class UrlShortener(clusterRegion: ActorRef) extends Actor{
   }
 }
 
-private class UrlShortenerDelegate(replyTo: ActorRef, validateWith: ActorRef) extends Actor
+private class UrlShortenerDelegate(replyTo: ActorRef, validateWith: ActorRef) extends Actor with ActorLogging
 {
   import UrlShortener.{ShortenCommand, ShortUrl}
   import java.security.MessageDigest
   override def receive = {
     case ShortenCommand(url) =>
+      log.info("Shortening $url")
       val hash = sha(url)
+      log.info(s"To $hash")
       val shortenedUrl = ShortenedUrl(url, hash.substring(0, 4))
       validateWith ! ShortenedUrlHolder.storeUrl(shortenedUrl)
       context.become(waitingForValidation(shortenedUrl, hash))
+
   }
 
   private[this] def waitingForValidation(shortenedUrl: ShortenedUrl, hash: String): Receive = {

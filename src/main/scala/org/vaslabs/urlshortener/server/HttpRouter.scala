@@ -1,6 +1,6 @@
 package org.vaslabs.urlshortener.server
 
-import akka.http.scaladsl.model.{HttpResponse, StatusCodes, Uri}
+import akka.http.scaladsl.model._
 import akka.http.scaladsl.server.Directives._
 import akka.http.scaladsl.server.{PathMatcher, PathMatcher1, Route}
 import de.heikoseeberger.akkahttpcirce.FailFastCirceSupport
@@ -20,7 +20,8 @@ trait HttpRouter extends FailFastCirceSupport{ this: ShortenedUrlApi =>
       path("entry") {
         entity(as[ShortenUrlRQ]) {
           rq => onComplete(this.shortenUrl(rq.url)) {
-              _.map(shortenedUrl => complete(shortenedUrl))
+              _.map(shortenedUrl =>
+                complete(HttpEntity(ContentTypes.`text/plain(UTF-8)`, shortenedUrl)))
                 .getOrElse(complete(HttpResponse(StatusCodes.InternalServerError)))
           }
         }
