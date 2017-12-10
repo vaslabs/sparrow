@@ -41,7 +41,7 @@ object ShortenedUrlHolder {
     case msg @ StoreUrl(shortenedUrl) => (shortenedUrl.shortVersion, msg)
   }
 
-  private val numberOfShards = 26*26
+  private val numberOfShards = 36*36
 
   private val extractShardId: ShardRegion.ExtractShardId = {
     case Get(id)               => extractShardIdFromShortUrlId(id)
