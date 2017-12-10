@@ -1,6 +1,7 @@
 package org.vaslabs.urlshortener.server
 
 import akka.dispatch.Futures
+import akka.http.scaladsl.model.StatusCodes
 import akka.http.scaladsl.testkit.ScalatestRouteTest
 import de.heikoseeberger.akkahttpcirce.FailFastCirceSupport
 import org.scalatest.{Matchers, WordSpec}
@@ -17,6 +18,11 @@ class HttpRouterSpec extends WordSpec with ScalatestRouteTest with Matchers with
       }
     }
 
+    "redirect when short id matches a full url" in {
+      Get("/bar") ~> httpRouter.main ~> check {
+        response.status shouldBe StatusCodes.TemporaryRedirect
+      }
+    }
   }
 }
 
