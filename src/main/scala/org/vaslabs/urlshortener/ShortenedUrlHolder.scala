@@ -12,7 +12,10 @@ class ShortenedUrlHolder extends Actor{
     case Get(urlId) =>
       sender() ! fullUrl
     case StoreUrl(shortenedUrl) =>
-      sender() ! UrlIdAlreadyReserved(shortenedUrl.shortVersion)
+      if (shortenedUrl.url != fullUrl.url)
+        sender() ! UrlIdAlreadyReserved(shortenedUrl.shortVersion)
+      else
+        sender() ! StoredAck
   }
 
   override def receive: Receive = {

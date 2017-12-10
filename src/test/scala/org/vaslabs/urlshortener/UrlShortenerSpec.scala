@@ -16,6 +16,14 @@ class UrlShortenerSpec extends TestKit(ActorSystem("ShortenedUrlSystem"))
     expectMsg(UrlShortener.ShortUrl("20c9", "20c97674155e53d998eca74551e19f0e2dd3ef80643fdace3492d6c9d2d6b3fb"))
   }
 
+  "requesting to shorten a url twice" should "give the same result" in {
+    urlShortener ! UrlShortener.shorten("http://foo.com")
+    expectMsg(UrlShortener.ShortUrl("20c9", "20c97674155e53d998eca74551e19f0e2dd3ef80643fdace3492d6c9d2d6b3fb"))
+    urlShortener ! UrlShortener.shorten("http://foo.com")
+    expectMsg(UrlShortener.ShortUrl("20c9", "20c97674155e53d998eca74551e19f0e2dd3ef80643fdace3492d6c9d2d6b3fb"))
+
+  }
+
   "requesting to shorten a url that conflicts" should "give us a rehash" in {
     val mockCluster = TestProbe()
     val urlShortenerWithMockCluster = TestActorRef(UrlShortener.props(mockCluster.ref))
