@@ -26,4 +26,7 @@ libraryDependencies ++= Seq(
   "io.circe" %% "circe-parser" % circeVersion,
   "io.circe" %% "circe-java8" % circeVersion,
   "de.heikoseeberger" %% "akka-http-circe" % "1.16.0",
+  "com.gu" %% "scanamo" % "0.9.5",
+  "com.github.pureconfig" %% "pureconfig" % "0.8.0",
+
 )

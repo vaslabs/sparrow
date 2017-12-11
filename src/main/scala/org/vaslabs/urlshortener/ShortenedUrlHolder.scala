@@ -1,12 +1,20 @@
 package org.vaslabs.urlshortener
 
-import akka.actor.{Actor, ActorRef, ActorSystem, Props}
+import akka.actor.{Actor, ActorLogging, ActorRef, ActorSystem, Props, Stash}
 import akka.cluster.sharding.{ClusterSharding, ClusterShardingSettings, ShardRegion}
-import org.vaslabs.urlshortener.ShortenedUrlHolder.FullUrl
+import cats.syntax.either._
+import com.amazonaws.services.dynamodbv2.AmazonDynamoDB
+import com.gu.scanamo._
+import com.gu.scanamo.error.DynamoReadError
+import com.gu.scanamo.syntax._
+import org.vaslabs.urlshortener.ShortenedUrlHolder.{DynamoNotFound, FullUrl}
 
-class ShortenedUrlHolder extends Actor{
+class ShortenedUrlHolder(
+        dynamoDBClient: AmazonDynamoDB,
+        dynamoDBTable: Table[ShortenedUrl]) extends Actor with ActorLogging with Stash
+{
 
-  import ShortenedUrlHolder.{StoreUrl, Get, UrlIdAlreadyReserved, NotFound, StoredAck}
+  import ShortenedUrlHolder.{Get, NotFound, StoreError, StoreUrl, StoredAck, UrlIdAlreadyReserved}
 
   private[this] def postUrlHold(fullUrl: FullUrl): Receive = {
     case Get(urlId) =>
@@ -18,12 +26,55 @@ class ShortenedUrlHolder extends Actor{
         sender() ! StoredAck
   }
 
-  override def receive: Receive = {
+  def persist(shortenedUrl: ShortenedUrl) = {
+    val result = Either.catchNonFatal(
+      Scanamo.exec(dynamoDBClient)(dynamoDBTable.put(shortenedUrl))
+    ).map(r => self ! shortenedUrl).left.map(t => StoreError(t.getMessage))
+
+  }
+
+  def waitForPersistentResult(senderRef: ActorRef, shortenedUrl: ShortenedUrl): Receive = {
+    case su: ShortenedUrl =>
+      context.become(postUrlHold(FullUrl(su.url)))
+      senderRef ! StoredAck
+    case Get(urlId) =>
+      sender() ! FullUrl(shortenedUrl.url)
+    case err: StoreError =>
+    case StoreUrl(shortenedUrl) => sender() ! UrlIdAlreadyReserved(shortenedUrl.shortVersion)
+  }
+
+  private def receivePostEntityStart(): Receive = {
     case StoreUrl(shortenedUrl) =>
-      context.become(postUrlHold(FullUrl(shortenedUrl.url)))
-      sender() ! StoredAck
+      persist(shortenedUrl)
+      val senderRef = sender()
+      context.become(waitForPersistentResult(senderRef, shortenedUrl))
     case Get(urlId) =>
       sender() ! NotFound
+  }
+
+  override def receive: Receive = {
+    case s: ShortenedUrl =>
+      context.become(postUrlHold(FullUrl(s.url)))
+      unstashAll()
+    case error: DynamoReadError =>
+      context.become(receivePostEntityStart())
+      unstashAll()
+    case DynamoNotFound(urlId) =>
+      context.become(receivePostEntityStart())
+      unstashAll()
+    case _ => stash()
+  }
+
+  override def preStart(): Unit = {
+    val entityId = self.path.name
+    val result = Scanamo.exec(dynamoDBClient)(dynamoDBTable.get('shortVersion -> entityId)).map(
+      either => either.map(self ! _).left.map(self ! _)
+    )
+    if (result.isEmpty)
+      self ! DynamoNotFound(entityId)
+
+
+    super.preStart()
   }
 
 }
@@ -52,18 +103,26 @@ object ShortenedUrlHolder {
 
   private[this] def extractShardIdFromShortUrlId(id: String) = id.substring(0, 2)
 
-  private def props: Props = Props[ShortenedUrlHolder]
+  private def props(dynamoDBClient: AmazonDynamoDB,
+                    tableName: String): Props =
+      Props(new ShortenedUrlHolder(dynamoDBClient, Table[ShortenedUrl](tableName)))
 
-  def counterRegion(system:ActorSystem): ActorRef = ClusterSharding(system).start(
-    typeName = "ShortenedUrlHolder",
-    entityProps = ShortenedUrlHolder.props,
-    settings = ClusterShardingSettings(system),
-    extractEntityId = extractEntityId,
-    extractShardId = extractShardId)
+  def counterRegion(system:ActorSystem, dynamoDBClient: AmazonDynamoDB, tableName: String): ActorRef =
+    ClusterSharding(system).start(
+      typeName = "ShortenedUrlHolder",
+      entityProps = ShortenedUrlHolder.props(dynamoDBClient, tableName),
+      settings = ClusterShardingSettings(system),
+      extractEntityId = extractEntityId,
+      extractShardId = extractShardId)
+
 
   case class UrlIdAlreadyReserved(urlId: String)
   case class NotFound(urlId: String)
 
   case object StoredAck
+
+  case class StoreError(errorMessage: String)
+
+  private case class DynamoNotFound(urlId: String)
 
 }

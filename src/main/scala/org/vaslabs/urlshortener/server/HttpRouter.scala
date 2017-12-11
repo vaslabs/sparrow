@@ -4,9 +4,9 @@ import akka.http.scaladsl.model._
 import akka.http.scaladsl.server.Directives._
 import akka.http.scaladsl.server.{PathMatcher, PathMatcher1, Route}
 import de.heikoseeberger.akkahttpcirce.FailFastCirceSupport
-import io.circe.generic.auto._
 
 trait HttpRouter extends FailFastCirceSupport{ this: ShortenedUrlApi =>
+  import io.circe.generic.auto._
 
   def main: Route = {
     get {

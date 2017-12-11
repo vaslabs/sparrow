@@ -1,15 +1,19 @@
 package org.vaslabs.urlshortener
 
-import akka.actor.Status.Failure
 import akka.actor.{ActorRef, ActorSystem}
 import akka.testkit.{ImplicitSender, TestActorRef, TestKit, TestProbe}
 import org.scalatest.FlatSpecLike
 
 class UrlShortenerSpec extends TestKit(ActorSystem("ShortenedUrlSystem"))
       with FlatSpecLike
-      with ImplicitSender
+      with ImplicitSender with ClusterBaseSpec
 {
-  val urlShortener: ActorRef = TestActorRef(UrlShortener.props(ShortenedUrlCluster.region(system)))
+
+  implicit val dynamodb = dynamoDBTestClient
+  implicit val actorSystem = system
+
+  val urlShortener: ActorRef = TestActorRef(UrlShortener.props(
+    ShortenedUrlCluster.region("url-shortener")))
 
   "requesting to shorten a url" should "give us back the 4 first characters of a sha" in {
     urlShortener ! UrlShortener.shorten("http://foo.com")
