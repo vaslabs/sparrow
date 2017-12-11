@@ -1,3 +1,3 @@
 package org.vaslabs.urlshortener
 
-case class ShortenedUrl(url: String, shortVersion: String, ttl: )
+case class ShortenedUrl(url: String, shortVersion: String)
