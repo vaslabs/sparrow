@@ -17,7 +17,7 @@ object Boot extends App{
 
   loadConfig[ShortenerConfig]("shortener").map(
     shortenerConfig => {
-      println(shortenerConfig)
+
 
       implicit val dynamoDBClient: AmazonDynamoDB =
         AmazonDynamoDBClientBuilder.standard()
