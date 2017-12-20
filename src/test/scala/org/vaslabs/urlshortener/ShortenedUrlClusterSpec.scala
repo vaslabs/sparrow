@@ -2,14 +2,18 @@ package org.vaslabs.urlshortener
 
 import akka.actor.ActorSystem
 import akka.testkit.{ImplicitSender, TestKit}
-import org.scalatest.FlatSpecLike
+import org.scalatest.{BeforeAndAfterAll, FlatSpecLike}
 import com.gu.scanamo.syntax._
 import com.gu.scanamo._
 import org.vaslabs.urlshortener.ShortenedUrlHolder.StoredAck
 
 class ShortenedUrlClusterSpec
-  extends TestKit(ActorSystem("ShortenedUrlSystem")) with FlatSpecLike with ImplicitSender with ClusterBaseSpec
+  extends TestKit(ActorSystem("ShortenedUrlSystem")) with FlatSpecLike with ImplicitSender with ClusterBaseSpec with BeforeAndAfterAll
 {
+
+  import system.dispatcher
+  override def afterAll() = system.terminate().foreach(_ => println("terminated"))
+
   implicit val dynamoDBClient = dynamoDBTestClient
   Scanamo.exec(dynamoDBTestClient)(Table[ShortenedUrl]("url-shortener").delete('shortVersion -> "bar"))
   "given that we pass a shortened url pair the cluster" should "give the url back" in {

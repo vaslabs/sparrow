@@ -2,13 +2,16 @@ package org.vaslabs.urlshortener
 
 import akka.actor.{ActorRef, ActorSystem}
 import akka.testkit.{ImplicitSender, TestActorRef, TestKit, TestProbe}
-import org.scalatest.FlatSpecLike
+import org.scalatest.{BeforeAndAfterAll, FlatSpecLike}
 
 class UrlShortenerSpec extends TestKit(ActorSystem("ShortenedUrlSystem"))
       with FlatSpecLike
-      with ImplicitSender with ClusterBaseSpec
+      with ImplicitSender with ClusterBaseSpec with BeforeAndAfterAll
 {
 
+  import system.dispatcher
+
+  override def afterAll(): Unit = system.terminate().foreach(_ => println("terminated"))
   implicit val dynamodb = dynamoDBTestClient
   implicit val actorSystem = system
 

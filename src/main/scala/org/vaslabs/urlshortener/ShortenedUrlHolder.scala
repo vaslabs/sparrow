@@ -50,6 +50,7 @@ class ShortenedUrlHolder(
       context.become(waitForPersistentResult(senderRef, shortenedUrl))
     case Get(urlId) =>
       sender() ! NotFound
+      context.stop(self)
   }
 
   override def receive: Receive = {
