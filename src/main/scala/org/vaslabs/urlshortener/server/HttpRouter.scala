@@ -32,7 +32,7 @@ trait HttpRouter extends FailFastCirceSupport{ this: ShortenedUrlApi =>
             if (headerValue != apiKey)
               complete(StatusCodes.Forbidden)
             else
-              onComplete(this.shortenUrl(rq.url)) {
+              onComplete(this.shortenUrl(rq)) {
                 _.map(shortenedUrl =>
                   complete(HttpEntity(ContentTypes.`text/plain(UTF-8)`, shortenedUrl)))
                   .getOrElse(complete(HttpResponse(StatusCodes.InternalServerError)))

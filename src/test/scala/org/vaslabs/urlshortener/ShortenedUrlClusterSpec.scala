@@ -34,4 +34,12 @@ class ShortenedUrlClusterSpec
     expectMsg(ShortenedUrlHolder.UrlIdAlreadyReserved("bar"))
   }
 
+  "given that we pass a custom shortened url it" should "give us the custom short version back" in {
+    val clusterRegion = ShortenedUrlCluster.region("url-shortener")
+    clusterRegion ! ShortenedUrlHolder.storeCustomUrl("http://bar.com", "custom")
+    expectMsg(StoredAck)
+    clusterRegion ! ShortenedUrlHolder.Get("custom")
+    expectMsg(ShortenedUrlHolder.FullUrl("http://bar.com"))
+  }
+
 }

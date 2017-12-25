@@ -7,7 +7,7 @@ import com.amazonaws.services.dynamodbv2.AmazonDynamoDB
 import com.gu.scanamo._
 import com.gu.scanamo.error.DynamoReadError
 import com.gu.scanamo.syntax._
-import org.vaslabs.urlshortener.ShortenedUrlHolder.{DynamoNotFound, FullUrl}
+import org.vaslabs.urlshortener.ShortenedUrlHolder.{DynamoNotFound, FullUrl, StoreCustomUrl}
 
 class ShortenedUrlHolder(
         dynamoDBClient: AmazonDynamoDB,
@@ -41,12 +41,18 @@ class ShortenedUrlHolder(
       sender() ! FullUrl(shortenedUrl.url)
     case err: StoreError =>
     case StoreUrl(shortenedUrl) => sender() ! UrlIdAlreadyReserved(shortenedUrl.shortVersion)
+    case StoreCustomUrl(url, custom) => sender() ! UrlIdAlreadyReserved(custom)
   }
 
   private def receivePostEntityStart(): Receive = {
     case StoreUrl(shortenedUrl) =>
       persist(shortenedUrl)
       val senderRef = sender()
+      context.become(waitForPersistentResult(senderRef, shortenedUrl))
+    case StoreCustomUrl(url, custom) =>
+      val shortenedUrl = ShortenedUrl(url, custom)
+      val senderRef = sender()
+      persist(shortenedUrl)
       context.become(waitForPersistentResult(senderRef, shortenedUrl))
     case Get(urlId) =>
       sender() ! NotFound
@@ -82,6 +88,11 @@ class ShortenedUrlHolder(
 
 object ShortenedUrlHolder {
 
+  case class StoreCustomUrl(url: String, custom: String)
+
+  def storeCustomUrl(url: String, custom: String): StoreCustomUrl = StoreCustomUrl(url, custom)
+
+
   case class StoreUrl(shortenedUrl: ShortenedUrl)
   case class Get(urlId: String)
   case class FullUrl(url: String)
@@ -91,6 +102,7 @@ object ShortenedUrlHolder {
   private val extractEntityId: ShardRegion.ExtractEntityId = {
     case msg @ Get(id)               => (id.toString, msg)
     case msg @ StoreUrl(shortenedUrl) => (shortenedUrl.shortVersion, msg)
+    case msg @ StoreCustomUrl(url, custom) => (url, msg)
   }
 
   private val numberOfShards = 36*36
@@ -100,6 +112,7 @@ object ShortenedUrlHolder {
     case ShardRegion.StartEntity(id) =>
       extractShardIdFromShortUrlId(id)
     case StoreUrl(shortenedUrl) => extractShardIdFromShortUrlId(shortenedUrl.shortVersion)
+    case StoreCustomUrl(url, custom) => extractShardIdFromShortUrlId(custom)
   }
 
   private[this] def extractShardIdFromShortUrlId(id: String) = id.substring(0, 2)

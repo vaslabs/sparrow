@@ -8,7 +8,7 @@ import org.vaslabs.urlshortener.ShortenedUrlCluster
 import pureconfig._
 
 case class ShortenerConfig(dynamodb: DynamoDBConfig)
-case class DynamoDBConfig(endpoint: String, tableName: String, region: String)
+case class DynamoDBConfig(endpoint: Option[String], tableName: String, region: String)
 
 object Boot extends App{
 
@@ -20,13 +20,16 @@ object Boot extends App{
 
 
       implicit val dynamoDBClient: AmazonDynamoDB =
-        AmazonDynamoDBClientBuilder.standard()
+        shortenerConfig.dynamodb.endpoint.map(endpoint => {
+          AmazonDynamoDBClientBuilder.standard()
             .withEndpointConfiguration(
               new EndpointConfiguration(
-                shortenerConfig.dynamodb.endpoint,
+                endpoint,
                 shortenerConfig.dynamodb.region
               )
             ).build()
+        }).getOrElse(AmazonDynamoDBClientBuilder.defaultClient())
+
 
       val cluster = ShortenedUrlCluster.region(shortenerConfig.dynamodb.tableName)
 
