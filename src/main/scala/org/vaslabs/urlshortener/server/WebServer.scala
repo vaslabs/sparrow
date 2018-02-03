@@ -4,7 +4,7 @@ import akka.actor.{ActorRef, ActorSystem}
 import akka.http.scaladsl.Http
 import akka.stream.ActorMaterializer
 import akka.util.Timeout
-import org.vaslabs.urlshortener.UrlShortener
+import org.vaslabs.urlshortener.{PermissionsLayer, UrlShortener}
 
 import scala.concurrent.{ExecutionContext, Future}
 import scala.concurrent.duration._
@@ -16,7 +16,7 @@ class WebServer(cluster: ActorRef)
                 executionContext: ExecutionContext)
   extends ClusterBasedShortenedUrlApi(
     cluster,
-    actorSystem.actorOf(UrlShortener.props(cluster))) with HttpRouter{
+    actorSystem.actorOf(PermissionsLayer.props(UrlShortener.props(cluster), cluster))) with HttpRouter{
 
     def start(): Unit = {
         Http().bindAndHandle(this.main, "0.0.0.0", 8080)

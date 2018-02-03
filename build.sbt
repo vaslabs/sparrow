@@ -4,7 +4,7 @@ version := "0.1"
 
 scalaVersion := "2.12.4"
 
-val akkaVersion = "2.5.7"
+val akkaVersion = "2.5.9"
 val circeVersion = "0.8.0"
 
 
@@ -28,5 +28,5 @@ libraryDependencies ++= Seq(
   "de.heikoseeberger" %% "akka-http-circe" % "1.16.0",
   "com.gu" %% "scanamo" % "0.9.5",
   "com.github.pureconfig" %% "pureconfig" % "0.8.0",
-
+  "eu.timepit" %% "refined"            % "0.8.7"
 )

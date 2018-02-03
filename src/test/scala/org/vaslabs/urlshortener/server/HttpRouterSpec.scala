@@ -46,6 +46,6 @@ class HttpRouterSpec extends WordSpec with ScalatestRouteTest with Matchers with
 class MockShortenedApi() extends ShortenedUrlApi {
   override def fetchUrl(urlId: String) = Futures.successful("http://foo.com")
 
-  override def shortenUrl(shortenUrlRQ: ShortenUrlRQ) =
+  override def shortenUrl(shortenUrlRQ: ShortenUrlRQ, apiKey: String) =
     Futures.successful(shortenUrlRQ.customShortKey.getOrElse("http://l/b4r"))
 }
