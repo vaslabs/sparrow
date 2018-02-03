@@ -14,7 +14,15 @@ trait HttpRouter extends FailFastCirceSupport {
   import io.circe.generic.auto._
 
   def extractFromCustomHeader = headerValuePF {
-    case t@ApiTokenHeader(token) => t.value()
+    case t @ ApiTokenHeader(token) => t.value()
+  }
+
+  def handleResponse(shortenedUrl: Either[StatusCode, String]): Route = {
+    shortenedUrl.map(urlId =>
+      complete(HttpEntity(ContentTypes.`text/plain(UTF-8)`, urlId))
+    ).left.map(statusCode =>
+      complete(HttpResponse(statusCode))
+    ).merge
   }
 
   def main: Route = {
@@ -29,10 +37,8 @@ trait HttpRouter extends FailFastCirceSupport {
       path("entry") {
         entity(as[ShortenUrlRQ]) { rq =>
           extractFromCustomHeader { headerValue =>
-            onComplete(this.shortenUrl(rq, headerValue)) {
-              _.map(shortenedUrl =>
-                complete(HttpEntity(ContentTypes.`text/plain(UTF-8)`, shortenedUrl)))
-                .getOrElse(complete(HttpResponse(StatusCodes.InternalServerError)))
+            onSuccess(this.shortenUrl(rq, headerValue)) {
+              result => handleResponse(result)
             }
           }
         }
