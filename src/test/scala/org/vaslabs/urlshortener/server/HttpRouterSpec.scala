@@ -1,7 +1,6 @@
 package org.vaslabs.urlshortener.server
 
 import akka.actor.ActorRef
-import akka.dispatch.Futures
 import akka.http.scaladsl.model._
 import akka.http.scaladsl.testkit.ScalatestRouteTest
 import akka.testkit.TestActor.AutoPilot
