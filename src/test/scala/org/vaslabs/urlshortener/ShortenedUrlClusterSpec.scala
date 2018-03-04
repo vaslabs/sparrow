@@ -2,13 +2,14 @@ package org.vaslabs.urlshortener
 
 import akka.actor.ActorSystem
 import akka.testkit.{ImplicitSender, TestKit}
-import org.scalatest.{BeforeAndAfterAll, FlatSpecLike}
+import org.scalatest.{BeforeAndAfterAll, FlatSpecLike, Matchers}
 import com.gu.scanamo.syntax._
 import com.gu.scanamo._
-import org.vaslabs.urlshortener.ShortenedUrlHolder.StoredAck
+import org.vaslabs.urlshortener.ShortenedUrlHolder.{StoredAck, VisitorDetails}
 
 class ShortenedUrlClusterSpec
-  extends TestKit(ActorSystem("ShortenedUrlSystem")) with FlatSpecLike with ImplicitSender with ClusterBaseSpec with BeforeAndAfterAll
+  extends TestKit(ActorSystem("ShortenedUrlSystem"))
+    with FlatSpecLike with ImplicitSender with ClusterBaseSpec with BeforeAndAfterAll with Matchers
 {
 
   import system.dispatcher
@@ -49,6 +50,19 @@ class ShortenedUrlClusterSpec
     clusterRegion ! ShortenedUrlHolder.GetStats("forstats")
 
     expectMsg(ShortenedUrlHolder.Stats(List.empty))
+  }
+
+  "given that we request for stats of already visited url it" should "give us visit stats" in {
+    import eu.timepit.refined.auto._
+    val clusterRegion = ShortenedUrlCluster.region("url-shortener")
+    clusterRegion ! ShortenedUrlHolder.storeCustomUrl("http://tovisit.com", "visited")
+    expectMsg(StoredAck)
+    clusterRegion ! ShortenedUrlHolder.Get("visited", Some(VisitorDetails(Some("127.0.0.1"), None)))
+    expectMsg(ShortenedUrlHolder.FullUrl("http://tovisit.com"))
+    clusterRegion ! ShortenedUrlHolder.GetStats("visited")
+    val stats = expectMsgType[ShortenedUrlHolder.Stats]
+    stats.visits.size shouldBe 1
+    println(stats)
   }
 
 }

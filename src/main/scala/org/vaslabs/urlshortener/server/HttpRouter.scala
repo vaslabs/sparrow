@@ -43,9 +43,12 @@ trait HttpRouter extends FailFastCirceSupport {
     } ~
       get {
         path(ShortenedPathMatchers.urlIds) { urlId =>
-          onComplete(this.fetchUrl(urlId)) {
-            _.map(url => redirect(Uri(url), StatusCodes.TemporaryRedirect))
-              .getOrElse(complete(HttpResponse(StatusCodes.NotFound)))
+          extractClientIP { clientIp =>
+            println(s"Visit from ${clientIp}")
+            onComplete(this.fetchUrl(urlId, clientIp.toIP.map(_.ip.getHostName))) {
+              _.map(url => redirect(Uri(url), StatusCodes.TemporaryRedirect))
+                .getOrElse(complete(HttpResponse(StatusCodes.NotFound)))
+            }
           }
         }
       } ~ post {

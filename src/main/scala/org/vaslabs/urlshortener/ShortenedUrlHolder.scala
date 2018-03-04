@@ -19,7 +19,7 @@ class ShortenedUrlHolder(
 
   import ShortenedUrlHolder._
 
-  var visitors: List[(VisitorDetails, ZonedDateTime)] = List()
+  var visitors: Map[VisitorDetails, VisitStats] = Map.empty[VisitorDetails, VisitStats]
   var min: Option[VisitorDetails] = Option.empty
 
   private[this] def postUrlHold(fullUrl: FullUrl): Receive = {
@@ -32,9 +32,9 @@ class ShortenedUrlHolder(
       else
         sender() ! StoredAck
     case GetStats(urlId) => sender() ! Stats(visitors.map{
-      case (details, visitTime) =>
-        Visit(details.ipv4.map(_.value).getOrElse(details.ipv6.map(_.value).getOrElse("Unknown")), visitTime)
-    })
+      case (details, v) =>
+        Visit(details.ipv4.map(_.value).getOrElse(details.ipv6.map(_.value).getOrElse("Unknown")), v.numberOfVisits, v.lastVisit)
+    }.toList)
   }
 
   def persist(shortenedUrl: ShortenedUrl) = {
@@ -45,7 +45,9 @@ class ShortenedUrlHolder(
   }
 
   def updateVisits(visitorDetails: VisitorDetails): Unit = {
-    visitors = ((visitorDetails -> ZonedDateTime.now()) :: visitors).take(10)
+    val visitTime = ZonedDateTime.now()
+    val visitStats = visitors.getOrElse(visitorDetails, VisitStats(visitTime, 0))
+    visitors += (visitorDetails -> visitStats.copy(visitTime, visitStats.numberOfVisits + 1))
   }
 
   def waitForPersistentResult(senderRef: ActorRef, shortenedUrl: ShortenedUrl): Receive = {
@@ -55,13 +57,14 @@ class ShortenedUrlHolder(
     case Get(urlId, maybeVisitorDetails) =>
       maybeVisitorDetails.foreach(updateVisits)
       sender() ! FullUrl(shortenedUrl.url)
+
     case err: StoreError =>
     case StoreUrl(shortenedUrl) => sender() ! UrlIdAlreadyReserved(shortenedUrl.shortVersion)
     case StoreCustomUrl(url, custom) => sender() ! UrlIdAlreadyReserved(custom)
     case GetStats(urlId) => sender() ! Stats(visitors.map{
-      case (details, visitTime) =>
-        Visit(details.ipv4.map(_.value).getOrElse(details.ipv6.map(_.value).getOrElse("Unknown")), visitTime)
-    })
+      case (details, v) =>
+        Visit(details.ipv4.map(_.value).getOrElse(details.ipv6.map(_.value).getOrElse("Unknown")), v.numberOfVisits, v.lastVisit)
+    }.toList)
   }
 
   private def receivePostEntityStart(): Receive = {
@@ -79,6 +82,7 @@ class ShortenedUrlHolder(
       context.stop(self)
     case GetStats(urlId) =>
       sender() ! NotFound
+      context.stop(self)
   }
 
   override def receive: Receive = {
@@ -118,13 +122,24 @@ object ShortenedUrlHolder {
   type Ipv4 = String Refined IPv4
   type Ipv6 = String Refined IPv6
 
+  case class VisitStats(lastVisit: ZonedDateTime, numberOfVisits: Int)
   case class VisitorDetails(ipv4: Option[Ipv4], ipv6: Option[Ipv6])
+
+  object VisitorDetails {
+    import eu.timepit.refined.auto._
+    import eu.timepit.refined._
+    def apply(ip: String): VisitorDetails = {
+      val ipv4 = refineV[IPv4](ip).toOption
+      val ipv6 = refineV[IPv6](ip).toOption
+      new VisitorDetails(ipv4, ipv6)
+    }
+  }
 
   case class StoreUrl(shortenedUrl: ShortenedUrl)
   case class Get(urlId: String, visitor: Option[VisitorDetails] = None)
   case class FullUrl(url: String)
   case class GetStats(urlId: String)
-  case class Visit(ip: String, timeOfVisit: ZonedDateTime)
+  case class Visit(ip: String, numberOfVisits: Int, lastVisit: ZonedDateTime)
   case class Stats(visits: List[Visit])
 
   def storeUrl(shortenedUrl: ShortenedUrl): StoreUrl = StoreUrl(shortenedUrl)
