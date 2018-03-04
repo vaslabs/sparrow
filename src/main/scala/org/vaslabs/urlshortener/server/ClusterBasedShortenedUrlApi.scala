@@ -31,4 +31,15 @@ class ClusterBasedShortenedUrlApi(clusterRegion: ActorRef, permissionsLayer: Act
         }
       }
 
+  override def stats(urlId: String, apiKey: String): Future[Either[StatusCode, model.Stats]] = {
+    (permissionsLayer ? PermissionsLayer.FetchStats(urlId, apiKey)).map {
+      _ match {
+        case ShortenedUrlHolder.Stats(visits) =>
+          Right(model.Stats(visits.map(v => model.Stat(v.ip, visits.size, v.timeOfVisit))))
+        case PermissionsLayer.AuthorizationFailure => Left(StatusCodes.Unauthorized)
+        case other =>
+          Left(StatusCodes.InternalServerError)
+      }
+    }
+  }
 }

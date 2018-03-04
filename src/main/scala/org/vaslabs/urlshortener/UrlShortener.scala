@@ -2,15 +2,17 @@ package org.vaslabs.urlshortener
 
 import akka.actor.{Actor, ActorLogging, ActorRef, Props}
 import org.vaslabs.urlshortener.ShortenedUrlHolder.{StoredAck, UrlIdAlreadyReserved}
-import org.vaslabs.urlshortener.permissions.Permissions.{CanCreateNew, User}
+import org.vaslabs.urlshortener.permissions.Permissions.{CanCreateNew}
 import org.vaslabs.urlshortener.server.ShortenUrlRQ
 
 class UrlShortener(clusterRegion: ActorRef) extends Actor with ActorLogging{
-  import UrlShortener.ShortenCommand
+  import UrlShortener.{ShortenCommand, GetStats}
   override def receive = {
     case sc: ShortenCommand =>
       val senderRef = sender()
       context.actorOf(Props(new UrlShortenerDelegate(senderRef, clusterRegion))).forward(sc)
+    case GetStats(urlId) =>
+      clusterRegion forward ShortenedUrlHolder.GetStats(urlId)
   }
 }
 
@@ -68,5 +70,7 @@ object UrlShortener {
     ShortenCommand(url, None, user)
 
   case class ShortUrl(shortVersion: String, sha: String)
+
+  case class GetStats(urlId: String)
 
 }

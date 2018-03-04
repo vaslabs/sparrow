@@ -42,4 +42,13 @@ class ShortenedUrlClusterSpec
     expectMsg(ShortenedUrlHolder.FullUrl("http://bar.com"))
   }
 
+  "given that we request for stats it" should "give us the stats" in {
+    val clusterRegion = ShortenedUrlCluster.region("url-shortener")
+    clusterRegion ! ShortenedUrlHolder.storeCustomUrl("http://bar.com", "forstats")
+    expectMsg(StoredAck)
+    clusterRegion ! ShortenedUrlHolder.GetStats("forstats")
+
+    expectMsg(ShortenedUrlHolder.Stats(List.empty))
+  }
+
 }

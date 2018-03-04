@@ -3,8 +3,10 @@ package org.vaslabs.urlshortener
 import akka.actor.{Actor, ActorRef, Props}
 import org.vaslabs.urlshortener.permissions.PermissionMapping
 import eu.timepit.refined._
+import eu.timepit.refined.api.Refined
 import eu.timepit.refined.string.MatchesRegex
 import org.vaslabs.urlshortener.permissions.Permissions.User
+import org.vaslabs.urlshortener.server.model
 
 class PermissionsLayer private(urlShortener: Props, cluster: ActorRef) extends Actor{
 
@@ -32,6 +34,16 @@ class PermissionsLayer private(urlShortener: Props, cluster: ActorRef) extends A
         case _ =>
           sender() ! AuthorizationFailure
       }
+    case fs @ FetchStats(urlId, apiKey) =>
+      val user = refineV[MatchesRegex[W.`"[a-f0-9]{16}"`.T]](apiKey).map(apiKey =>
+        PermissionMapping(apiKey)
+      ).left.map(_ => Unauthorised).merge
+      user match {
+        case SuperUser =>
+          urlShortenerActorRef forward UrlShortener.GetStats(urlId)
+        case _ =>
+          sender() ! AuthorizationFailure
+      }
   }
 }
 
@@ -54,4 +66,13 @@ object PermissionsLayer {
     def asUrlShortenerCommand(user: CanCreateNew) =
       UrlShortenerCommand(shortenedCommand.url, shortenedCommand.customKey, user)
   }
+
+  case class FetchStats(urlId: String, apiKey: String)
+
+  import eu.timepit.refined.types.numeric._
+
+  case class Stat(ip: String, visits: PosInt)
+
+  case class StatsDetails(stats: model.Stats)
+
 }

@@ -10,13 +10,19 @@ import de.heikoseeberger.akkahttpcirce.FailFastCirceSupport
 import io.circe.generic.auto._
 import org.scalatest.{BeforeAndAfterAll, Matchers, WordSpec}
 import org.vaslabs.urlshortener.ShortenedUrlHolder.FullUrl
+import org.vaslabs.urlshortener.server.model.Stats
 import org.vaslabs.urlshortener.{PermissionsLayer, ShortenedUrlHolder, UrlShortener}
 
-class HttpRouterSpec extends WordSpec with ScalatestRouteTest with Matchers with FailFastCirceSupport with BeforeAndAfterAll {
+class HttpRouterSpec extends WordSpec with ScalatestRouteTest with Matchers with BeforeAndAfterAll {
+
+  import FailFastCirceSupport._
 
   override def afterAll() = {
     system.terminate().foreach(_ => println("terminated"))
   }
+
+  import encoders._
+  import decoders._
 
   "Http requests" should {
     val clusterTestProbe: TestProbe = TestProbe()
@@ -28,6 +34,8 @@ class HttpRouterSpec extends WordSpec with ScalatestRouteTest with Matchers with
         msg match {
           case UrlShortener.ShortenCommand(_, customKey, _) =>
             customKey.fold(sender ! UrlShortener.ShortUrl("b4r", "b4rb4rb4r"))(key => sender ! UrlShortener.ShortUrl(key, "foobar"))
+          case UrlShortener.GetStats(stats) =>
+            sender ! ShortenedUrlHolder.Stats(List.empty)
         }
         this
       }
@@ -36,7 +44,7 @@ class HttpRouterSpec extends WordSpec with ScalatestRouteTest with Matchers with
     clusterTestProbe.setAutoPilot(new AutoPilot {
       override def run(sender: ActorRef, msg: Any): AutoPilot = {
         msg match {
-          case ShortenedUrlHolder.Get(urlId) => sender ! FullUrl("http://foo.com")
+          case ShortenedUrlHolder.Get(urlId, None) => sender ! FullUrl("http://foo.com")
         }
         this
       }
@@ -70,6 +78,19 @@ class HttpRouterSpec extends WordSpec with ScalatestRouteTest with Matchers with
       Post("/entry", ShortenUrlRQ("http://foo.com", Some("foo")))
         .withHeaders(ApiTokenHeader.parse("0000000000000003").get) ~> httpRouter.main ~> check {
           response.status shouldBe StatusCodes.Unauthorized
+      }
+    }
+
+    "give unauthorised for stats upon request without a non super user api key" in {
+      Get("/stats/bar").withHeaders(ApiTokenHeader.parse("0000000000000001").get) ~> httpRouter.main ~> check {
+        response.status shouldBe StatusCodes.Unauthorized
+      }
+    }
+
+    "given valid response for stats if key is super user" in {
+      Get("/stats/b4r").withHeaders(ApiTokenHeader.parse("0000000000000000").get) ~> httpRouter.main ~> check {
+        response.status shouldBe StatusCodes.OK
+        responseAs[model.Stats] shouldBe model.Stats(List.empty)
       }
     }
   }
