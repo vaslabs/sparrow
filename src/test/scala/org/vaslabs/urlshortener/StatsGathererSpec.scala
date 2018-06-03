@@ -4,18 +4,21 @@ import java.time.{Clock, Instant, ZoneOffset, ZonedDateTime}
 
 import akka.actor.ActorSystem
 import akka.cluster.pubsub.DistributedPubSub
-import akka.cluster.pubsub.DistributedPubSubMediator.{Subscribe, SubscribeAck, Publish}
+import akka.cluster.pubsub.DistributedPubSubMediator.{Publish, Subscribe, SubscribeAck}
 import akka.testkit.{ImplicitSender, TestKit}
-import org.scalatest.{FlatSpecLike, Matchers}
+import org.scalatest.{BeforeAndAfterAll, FlatSpecLike, Matchers}
 import eu.timepit.refined.numeric._
 import eu.timepit.refined.auto._
 import cats.data._
+
 import scala.concurrent.duration._
 
 class StatsGathererSpec extends TestKit(ActorSystem("ShortenedUrlSystem")) with
-  FlatSpecLike with Matchers with ImplicitSender {
+  FlatSpecLike with Matchers with ImplicitSender with BeforeAndAfterAll{
 
   val TestClock = Clock.fixed(Instant.EPOCH, ZoneOffset.UTC)
+  import system.dispatcher
+  override def afterAll(): Unit = system.terminate().foreach(println)
 
   "stats gatherer collects stats and" must "report them" in {
     val statsGatherer = system.actorOf(StatsGatherer.props(), "statsGatherer")

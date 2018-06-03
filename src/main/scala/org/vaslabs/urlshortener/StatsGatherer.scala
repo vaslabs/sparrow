@@ -27,7 +27,7 @@ class StatsGatherer private () extends Actor with ActorLogging{
       log.info("Received visit event {}", visitEvent)
       mediator ! Publish("visitstats", StatsUpdated)
 
-    case GetStats => VisitStats(Map.empty)
+    case GetStats => sender() ! VisitStats(Map.empty)
     case SubscribeAck(subscribe) => log.info("Subscribed {}", subscribe)
   }
 

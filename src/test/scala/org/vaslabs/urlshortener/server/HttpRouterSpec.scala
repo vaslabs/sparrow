@@ -34,8 +34,6 @@ class HttpRouterSpec extends WordSpec with ScalatestRouteTest with Matchers with
         msg match {
           case UrlShortener.ShortenCommand(_, customKey, _) =>
             customKey.fold(sender ! UrlShortener.ShortUrl("b4r", "b4rb4rb4r"))(key => sender ! UrlShortener.ShortUrl(key, "foobar"))
-          case UrlShortener.GetStats(stats) =>
-            sender ! ShortenedUrlHolder.Stats(List.empty)
         }
         this
       }
@@ -82,15 +80,15 @@ class HttpRouterSpec extends WordSpec with ScalatestRouteTest with Matchers with
     }
 
     "give unauthorised for stats upon request without a non super user api key" in {
-      Get("/stats/bar").withHeaders(ApiTokenHeader.parse("0000000000000001").get) ~> httpRouter.main ~> check {
+      Get("/stats").withHeaders(ApiTokenHeader.parse("0000000000000001").get) ~> httpRouter.main ~> check {
         response.status shouldBe StatusCodes.Unauthorized
       }
     }
 
     "given valid response for stats if key is super user" in {
-      Get("/stats/b4r").withHeaders(ApiTokenHeader.parse("0000000000000000").get) ~> httpRouter.main ~> check {
+      Get("/stats").withHeaders(ApiTokenHeader.parse("0000000000000000").get) ~> httpRouter.main ~> check {
         response.status shouldBe StatusCodes.OK
-        responseAs[model.Stats] shouldBe model.Stats(List.empty)
+        responseAs[model.Stats] shouldBe model.Stats(Map.empty)
       }
     }
   }

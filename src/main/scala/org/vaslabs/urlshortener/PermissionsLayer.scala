@@ -16,6 +16,8 @@ class PermissionsLayer private(urlShortener: Props, cluster: ActorRef) extends A
 
   private val urlShortenerActorRef = context.actorOf(urlShortener, "urlShortener")
 
+  private val statsGatherer = context.actorOf(StatsGatherer.props(), "statsGatherer")
+
   override def receive = {
     case s: ShortenCommand =>
       val user = refineV[MatchesRegex[W.`"[a-f0-9]{16}"`.T]](s.apiKey).map(
@@ -34,13 +36,13 @@ class PermissionsLayer private(urlShortener: Props, cluster: ActorRef) extends A
         case _ =>
           sender() ! AuthorizationFailure
       }
-    case fs @ FetchStats(urlId, apiKey) =>
+    case fs @ FetchStats(apiKey) =>
       val user = refineV[MatchesRegex[W.`"[a-f0-9]{16}"`.T]](apiKey).map(apiKey =>
         PermissionMapping(apiKey)
       ).left.map(_ => Unauthorised).merge
       user match {
         case SuperUser =>
-          urlShortenerActorRef forward UrlShortener.GetStats(urlId)
+          statsGatherer forward StatsGatherer.Protocol.GetStats
         case _ =>
           sender() ! AuthorizationFailure
       }
@@ -67,12 +69,8 @@ object PermissionsLayer {
       UrlShortenerCommand(shortenedCommand.url, shortenedCommand.customKey, user)
   }
 
-  case class FetchStats(urlId: String, apiKey: String)
+  case class FetchStats(apiKey: String)
 
   import eu.timepit.refined.types.numeric._
-
-  case class Stat(ip: String, visits: PosInt)
-
-  case class StatsDetails(stats: model.Stats)
 
 }

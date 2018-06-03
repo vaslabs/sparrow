@@ -6,13 +6,11 @@ import org.vaslabs.urlshortener.permissions.Permissions.{CanCreateNew}
 import org.vaslabs.urlshortener.server.ShortenUrlRQ
 
 class UrlShortener(clusterRegion: ActorRef) extends Actor with ActorLogging{
-  import UrlShortener.{ShortenCommand, GetStats}
+  import UrlShortener.{ShortenCommand}
   override def receive = {
     case sc: ShortenCommand =>
       val senderRef = sender()
       context.actorOf(Props(new UrlShortenerDelegate(senderRef, clusterRegion))).forward(sc)
-    case GetStats(urlId) =>
-      clusterRegion forward ShortenedUrlHolder.GetStats(urlId)
   }
 }
 

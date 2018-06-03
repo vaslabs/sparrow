@@ -1,6 +1,6 @@
 package org.vaslabs.urlshortener.server
 
-import akka.http.scaladsl.marshalling.{PredefinedToEntityMarshallers, ToEntityMarshaller, ToResponseMarshallable, ToResponseMarshaller}
+import akka.http.scaladsl.marshalling.{PredefinedToEntityMarshallers, ToResponseMarshaller}
 import akka.http.scaladsl.model._
 import akka.http.scaladsl.model.headers.{ModeledCustomHeader, ModeledCustomHeaderCompanion}
 import akka.http.scaladsl.server.Directives._
@@ -31,10 +31,10 @@ trait HttpRouter extends FailFastCirceSupport {
 
   def main: Route = {
     get {
-      path("stats" / ShortenedPathMatchers.urlIds) { urlId =>
+      path("stats") {
         extractFromCustomHeader {
           headerValue => {
-            onSuccess(this.stats(urlId, headerValue)) {
+            onSuccess(this.stats(headerValue)) {
               res => handleResponse(res)
             }
           }
@@ -97,7 +97,7 @@ object encoders {
 
   import io.circe.refined._
 
-  implicit val statEncoder: Encoder[model.Stat] = deriveEncoder[model.Stat]
+  implicit val statEncoder: Encoder[model.IpStats] = deriveEncoder[model.IpStats]
 
   implicit val statsEncoder: Encoder[model.Stats] = deriveEncoder[model.Stats]
 
@@ -112,6 +112,6 @@ object decoders {
 
 
   implicit val rqDecoder: Decoder[ShortenUrlRQ] = deriveDecoder[ShortenUrlRQ]
-  implicit val statDecoder: Decoder[model.Stat] = deriveDecoder[model.Stat]
+  implicit val statDecoder: Decoder[model.IpStats] = deriveDecoder[model.IpStats]
   implicit val statsDecoder: Decoder[model.Stats] = deriveDecoder[model.Stats]
 }
