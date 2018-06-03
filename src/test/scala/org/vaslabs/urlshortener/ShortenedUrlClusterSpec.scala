@@ -1,11 +1,15 @@
 package org.vaslabs.urlshortener
 
 import akka.actor.ActorSystem
-import akka.testkit.{ImplicitSender, TestKit}
+import akka.cluster.pubsub.DistributedPubSub
+import akka.cluster.pubsub.DistributedPubSubMediator.{Subscribe, SubscribeAck}
+import akka.testkit.{ImplicitSender, TestKit, TestProbe}
+import cats.data.Ior
 import org.scalatest.{BeforeAndAfterAll, FlatSpecLike, Matchers}
 import com.gu.scanamo.syntax._
 import com.gu.scanamo._
 import org.vaslabs.urlshortener.ShortenedUrlHolder.{StoredAck, VisitorDetails}
+import org.vaslabs.urlshortener.StatsGatherer.Protocol.{GetStats, IpVisit, StatsUpdated, VisitStats}
 
 class ShortenedUrlClusterSpec
   extends TestKit(ActorSystem("ShortenedUrlSystem"))
@@ -47,22 +51,29 @@ class ShortenedUrlClusterSpec
     val clusterRegion = ShortenedUrlCluster.region("url-shortener")
     clusterRegion ! ShortenedUrlHolder.storeCustomUrl("http://bar.com", "forstats")
     expectMsg(StoredAck)
-    clusterRegion ! ShortenedUrlHolder.GetStats("forstats")
 
-    expectMsg(ShortenedUrlHolder.Stats(List.empty))
   }
 
   "given that we request for stats of already visited url it" should "give us visit stats" in {
+    val statsGatherer = system.actorOf(StatsGatherer.props())
     import eu.timepit.refined.auto._
+    val mediator = DistributedPubSub(system).mediator
+    val visitStatsListener = TestProbe("visitStatsListener")
+    mediator ! Subscribe("visitstats", visitStatsListener.ref)
+    expectMsgType[SubscribeAck]
+
     val clusterRegion = ShortenedUrlCluster.region("url-shortener")
     clusterRegion ! ShortenedUrlHolder.storeCustomUrl("http://tovisit.com", "visited")
     expectMsg(StoredAck)
     clusterRegion ! ShortenedUrlHolder.Get("visited", Some(VisitorDetails(Some("127.0.0.1"), None)))
     expectMsg(ShortenedUrlHolder.FullUrl("http://tovisit.com"))
-    clusterRegion ! ShortenedUrlHolder.GetStats("visited")
-    val stats = expectMsgType[ShortenedUrlHolder.Stats]
-    stats.visits.size shouldBe 1
-    println(stats)
+
+    visitStatsListener.expectMsg(StatsUpdated)
+    statsGatherer ! GetStats
+    expectMsg(VisitStats(
+      Map("visited" -> Set(IpVisit(Ior.Left("127.0.0.1"), 1L)))
+    ))
+
   }
 
 }

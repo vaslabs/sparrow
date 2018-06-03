@@ -5,9 +5,10 @@ import akka.http.scaladsl.model.{StatusCode, StatusCodes}
 import akka.pattern._
 import akka.util.Timeout
 import org.vaslabs.urlshortener.ShortenedUrlHolder.{FullUrl, VisitorDetails}
+import org.vaslabs.urlshortener.StatsGatherer.Protocol.VisitStats
 import org.vaslabs.urlshortener.UrlShortener.ShortUrl
-import org.vaslabs.urlshortener.permissions.Permissions.Unauthorised
-import org.vaslabs.urlshortener.{PermissionsLayer, ShortenedUrlHolder, UrlShortener}
+import org.vaslabs.urlshortener.server.model.{IpStats, Stats}
+import org.vaslabs.urlshortener.{PermissionsLayer, ShortenedUrlHolder}
 
 import scala.concurrent.{ExecutionContext, Future}
 import scala.concurrent.duration._
@@ -31,11 +32,11 @@ class ClusterBasedShortenedUrlApi(clusterRegion: ActorRef, permissionsLayer: Act
         }
       }
 
-  override def stats(urlId: String, apiKey: String): Future[Either[StatusCode, model.Stats]] = {
-    (permissionsLayer ? PermissionsLayer.FetchStats(urlId, apiKey)).map {
+  override def stats(apiKey: String): Future[Either[StatusCode, Stats]] = {
+    (permissionsLayer ? PermissionsLayer.FetchStats(apiKey)).map {
       _ match {
-        case ShortenedUrlHolder.Stats(visits) =>
-          Right(model.Stats(visits.map(v => model.Stat(v.ip, v.numberOfVisits, v.lastVisit))))
+        case VisitStats(visits) =>
+          Right(Stats(visits.mapValues(_.map(ipVisit => IpStats(ipVisit.ip.toString, ipVisit.timesVisited)))))
         case PermissionsLayer.AuthorizationFailure => Left(StatusCodes.Unauthorized)
         case other =>
           Left(StatusCodes.InternalServerError)
