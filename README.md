@@ -20,7 +20,7 @@ To generate a universal package do `sbt universal:packageBin`
 
 ## Usage
 
-- To create a short url
+### To create a short url
 
 ```
 curl -X POST \
@@ -35,7 +35,7 @@ curl -X POST \
 
 You'll get back a response of 4 characters. If you then visit http://localhost:8080/<thefourcharacters> you should be redirected to the url.
 
-- To view stats
+### To view stats
 
 ```
 curl -X GET \
