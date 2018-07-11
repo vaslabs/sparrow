@@ -33,6 +33,19 @@ curl -X POST \
 }'
 ```
 
+You can also request your own short url id like this
+```
+curl -X POST \
+  http://localhost:8080/entry \
+  -H 'cache-control: no-cache' \
+  -H 'content-type: application/json' \
+  -H 'x_sparrow_auth: 0000000000000000' \
+  -d '{
+	"url": "http://blog.vaslabs.org/2017/07/the-need-for-immutability.html",
+	"customShortKey": "immutables"
+}'
+```
+
 You'll get back a response of 4 characters. If you then visit http://localhost:8080/<thefourcharacters> you should be redirected to the url.
 
 ### To view stats
