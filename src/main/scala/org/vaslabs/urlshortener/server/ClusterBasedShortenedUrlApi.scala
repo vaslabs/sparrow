@@ -36,7 +36,7 @@ class ClusterBasedShortenedUrlApi(clusterRegion: ActorRef, permissionsLayer: Act
     (permissionsLayer ? PermissionsLayer.FetchStats(apiKey)).map {
       _ match {
         case VisitStats(visits) =>
-          Right(Stats(visits.mapValues(_.map(ipVisit => IpStats(ipVisit.ip.toString, ipVisit.timesVisited)))))
+          Right(Stats(visits.mapValues(_.map(ipVisit => IpStats(ipVisit.ipString, ipVisit.timesVisited)))))
         case PermissionsLayer.AuthorizationFailure => Left(StatusCodes.Unauthorized)
         case other =>
           Left(StatusCodes.InternalServerError)

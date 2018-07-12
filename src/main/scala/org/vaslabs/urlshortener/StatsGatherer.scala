@@ -5,6 +5,7 @@ import java.time.ZonedDateTime
 import akka.actor.{Actor, ActorLogging, Props}
 import akka.cluster.pubsub.DistributedPubSub
 import akka.cluster.pubsub.DistributedPubSubMediator.{Publish, Subscribe, SubscribeAck}
+import cats.data.Ior.{Both, Left, Right}
 import cats.data._
 class StatsGatherer private () extends Actor with ActorLogging{
 
@@ -59,7 +60,15 @@ object StatsGatherer {
 
     case class VisitStats(stats: Map[String, Set[IpVisit]])
 
-    case class IpVisit(ip: Ior[Ipv4, Ipv6], timesVisited: Long)
+    case class IpVisit(ip: Ior[Ipv4, Ipv6], timesVisited: Long) {
+      def ipString: String = ip match {
+        case Left(ipv4) => s"ipv4: $ipv4"
+        case Right(ipv6) => s"ipv6: $ipv6"
+        case Both(ipv4, ipv6) => s"ipv4: $ipv4, ipv6: $ipv6"
+        case _ => "Unknown"
+      }
+
+    }
 
     case object StatsUpdated
 
