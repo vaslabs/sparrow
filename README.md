@@ -46,7 +46,7 @@ curl -X POST \
 }'
 ```
 
-You'll get back a response of 4 characters. If you then visit http://localhost:8080/<thefourcharacters> you should be redirected to the url.
+You'll get back a response of 4 characters or your custom sequence. If you then visit http://localhost:8080/<thefourcharacters> you should be redirected to the url.
 
 ### To view stats
 
