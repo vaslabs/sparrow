@@ -1,5 +1,7 @@
 # Sparrow is a short url service
 
+[![Codacy Badge](https://api.codacy.com/project/badge/Grade/08b69f198c26483ca72e98fb1dd5837d)](https://app.codacy.com/app/vaslabs/sparrow?utm_source=github.com&utm_medium=referral&utm_content=vaslabs/sparrow&utm_campaign=Badge_Grade_Dashboard)
+
 ## Dependencies
 Sparrow uses dynamoDB for persistent storage. To use locally do
 ```
